@@ -46,6 +46,7 @@ design-system/
 
 # Internal docs
 IMPLEMENTATION_PLAN.md
+CHATBOT_IMPLEMENTATION.md
 
 # Logs
 *.log
