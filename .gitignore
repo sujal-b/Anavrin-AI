@@ -18,14 +18,14 @@ ENV/
 .env.local
 
 # ML model artifacts (regenerate via Kaggle notebook)
-ml-chatbot/models/*.joblib
-ml-chatbot/models/*.pkl
-ml-chatbot/data/*.pkl
-ml-chatbot/data/*.csv
+models/*.joblib
+models/*.pkl
+data/*.pkl
+data/*.csv
 
 # Generated evaluation graphs (regenerate via Kaggle notebook)
-ml-chatbot/evaluation/*.png
-ml-chatbot/evaluation/metrics.json
+evaluation/*.png
+evaluation/metrics.json
 
 # IDE
 .vscode/
@@ -43,6 +43,9 @@ desktop.ini
 .grill/
 .opencode/
 design-system/
+
+# Internal docs
+IMPLEMENTATION_PLAN.md
 
 # Logs
 *.log
