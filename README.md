@@ -8,7 +8,10 @@ Anavrin AI is a production-grade e-commerce customer support chatbot. It combine
 
 -   **Hybrid Intelligence**: Uses ML for precision classification and LLMs for natural conversation.
 -   **Clean Architecture**: Modular backend structure for easy scaling and maintenance.
--   **AI-Native UI**: Modern, responsive dark-mode interface with real-time status tracking.
+-   **Premium AI-Native UI**: Modern, responsive light-mode interface with Plus Jakarta Sans typography, glassmorphism, and smooth micro-interactions.
+-   **Global Session Memory**: Persistent server-wide context memory that tracks the last 20 messages for deep conversational continuity.
+-   **Real-time Streaming**: Token-by-token text reveal for a natural AI conversational feel.
+-   **Rich Text Support**: Built-in Markdown parsing for structured responses (lists, bolding, links).
 -   **Multi-Provider Support**: Seamlessly switch between NVIDIA NIM, OpenRouter, or local mock providers.
 -   **Smart Fallback**: Automatically reverts to high-quality local templates if LLM APIs are unavailable.
 -   **RAG Ready**: Built-in Retrieval-Augmented Generation (RAG) engine for product-specific context.
@@ -21,13 +24,14 @@ Anavrin AI is a production-grade e-commerce customer support chatbot. It combine
 graph TD
     User((User)) -->|Input Query| UI[Frontend UI]
     UI -->|API Request| FastAPI[FastAPI Backend]
+    FastAPI -->|Global Session| Memory[In-Memory State]
     FastAPI -->|1. Classify Intent| ML[ML Engine]
     ML -->|Intent + Confidence| RAG[RAG Engine]
     RAG -->|Fetch Context| DB[(Data/Context)]
-    RAG -->|Context + Prompt| LLM[LLM Client]
+    RAG -->|Context + Prompt + History| LLM[LLM Client]
     LLM -->|Generate Response| FastAPI
     FastAPI -->|JSON Response| UI
-    UI -->|Stream Output| User
+    UI -->|Character Streaming| User
 ```
 
 ---
