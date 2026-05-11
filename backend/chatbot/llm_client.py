@@ -68,6 +68,7 @@ class LLMClient:
         user_message: str,
         intent: str,
         context: str = "",
+        history: list[dict] = None,
         system_prompt: str = "",
         fallback_response: str = "",
     ) -> str:
@@ -86,8 +87,12 @@ Do not hallucinate order numbers or personal information."""
 
         messages = [
             {"role": "system", "content": system_prompt or default_system},
-            {"role": "user", "content": user_message},
         ]
+
+        if history:
+            messages.extend(history)
+
+        messages.append({"role": "user", "content": user_message})
 
         url = self._get_url()
         headers = self._build_headers()

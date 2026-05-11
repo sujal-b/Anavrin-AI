@@ -4,6 +4,12 @@
 
 const API = '/api';
 let isLoading = false;
+let sessionId = localStorage.getItem('session_id');
+
+if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem('session_id', sessionId);
+}
 
 // Elements
 const messagesEl = document.getElementById('messages');
@@ -80,7 +86,10 @@ async function sendMessage(message) {
         const res = await fetch(`${API}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ 
+                message,
+                session_id: sessionId 
+            })
         });
 
         if (!res.ok) throw new Error('Failed to send message');

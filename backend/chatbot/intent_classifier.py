@@ -11,6 +11,8 @@ from typing import Optional, Tuple
 import joblib
 import numpy as np
 
+from backend.config.settings import config
+
 logger = logging.getLogger("chatbot.classifier")
 
 
@@ -29,23 +31,30 @@ class IntentClassifier:
         self._clean_pattern = re.compile(r"[^\w\s]")
         self._whitespace_pattern = re.compile(r"\s+")
 
-    def load(self) -> bool:
-        """Load TF-IDF vectorizer and classifier."""
+    def load(self, tfidf=None) -> bool:
+        """Load TF-IDF vectorizer and classifier.
+        
+        Args:
+            tfidf: Pre-loaded TF-IDF vectorizer. If None, loads from disk.
+        """
         try:
-            # Load TF-IDF
-            for ext in ["joblib", "pkl"]:
-                path = os.path.join(self.models_dir, f"tfidf.{ext}")
-                if os.path.exists(path):
-                    self.tfidf = joblib.load(path)
-                    logger.info(f"Loaded TF-IDF ({ext})")
-                    break
+            if tfidf is not None:
+                self.tfidf = tfidf
+                logger.info("Using shared TF-IDF vectorizer")
+            else:
+                # Load TF-IDF
+                for ext in ["joblib", "pkl"]:
+                    path = os.path.join(self.models_dir, f"tfidf.{ext}")
+                    if os.path.exists(path):
+                        self.tfidf = joblib.load(path)
+                        logger.info(f"Loaded TF-IDF ({ext})")
+                        break
 
-            if self.tfidf is None:
-                raise FileNotFoundError("TF-IDF vectorizer not found")
+                if self.tfidf is None:
+                    raise FileNotFoundError("TF-IDF vectorizer not found")
 
             # Load classifier (best first)
-            model_priority = ["naive_bayes", "knn", "random_forest"]
-            for name in model_priority:
+            for name in config.MODEL_PRIORITY:
                 for ext in ["joblib", "pkl"]:
                     path = os.path.join(self.models_dir, f"{name}.{ext}")
                     if os.path.exists(path):

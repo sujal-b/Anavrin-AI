@@ -26,8 +26,12 @@ class RAGEngine:
         self.tfidf = None
         self.is_loaded = False
 
-    def load(self) -> bool:
-        """Load dataset and build FAISS index."""
+    def load(self, tfidf=None) -> bool:
+        """Load dataset and build FAISS index.
+        
+        Args:
+            tfidf: Pre-loaded TF-IDF vectorizer. If None, loads from disk.
+        """
         try:
             import joblib
 
@@ -55,16 +59,20 @@ class RAGEngine:
                     .to_dict()
                 )
 
-            # Load TF-IDF for vectorization
-            for ext in ["joblib", "pkl"]:
-                tfidf_path = os.path.join(self.models_dir, f"tfidf.{ext}")
-                if os.path.exists(tfidf_path):
-                    self.tfidf = joblib.load(tfidf_path)
-                    break
+            # Use shared TF-IDF or load from disk
+            if tfidf is not None:
+                self.tfidf = tfidf
+                logger.info("Using shared TF-IDF vectorizer")
+            else:
+                for ext in ["joblib", "pkl"]:
+                    tfidf_path = os.path.join(self.models_dir, f"tfidf.{ext}")
+                    if os.path.exists(tfidf_path):
+                        self.tfidf = joblib.load(tfidf_path)
+                        break
 
-            if self.tfidf is None:
-                logger.warning("TF-IDF not found, vector search disabled")
-                return True  # Still usable without FAISS
+                if self.tfidf is None:
+                    logger.warning("TF-IDF not found, vector search disabled")
+                    return True  # Still usable without FAISS
 
             # Build FAISS index
             self._build_index()
@@ -178,19 +186,72 @@ class RAGEngine:
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]
 
-    def get_context(self, intent: str, max_entries: int = 3) -> str:
-        """Get context string for a given intent (for LLM prompt)."""
-        if intent not in self.intent_responses:
-            return ""
+    def get_intent_context(self, intent: str, max_entries: int = 3) -> list[dict]:
+        """Get intent-matched Q&A pairs from dataset."""
+        if self.dataset is None or intent not in self.intent_responses:
+            return []
 
-        responses = self.intent_responses[intent][:max_entries]
-        return "\n".join(f"- {r}" for r in responses)
+        intent_rows = self.dataset[self.dataset["intent"] == intent].head(max_entries)
+        return [
+            {"instruction": row["instruction"], "response": row["response"]}
+            for _, row in intent_rows.iterrows()
+        ]
 
-    def get_sample_response(self, intent: str) -> str:
-        """Get the most common response for an intent."""
+    def get_first_response(self, intent: str) -> str:
+        """Get the first response for an intent (most frequent in dataset order)."""
         if intent in self.intent_responses and self.intent_responses[intent]:
             return self.intent_responses[intent][0]
         return ""
+
+    def get_combined_context(
+        self,
+        intent: str,
+        query: str,
+        classifier_confidence: float,
+        intent_max: int = 3,
+        faiss_top_k: int = 5,
+        confidence_threshold: float = 0.7,
+        high_score_threshold: float = 0.9,
+    ) -> tuple[str, str]:
+        """
+        Get combined context for LLM prompt + fallback response.
+
+        Returns:
+            (context_string, fallback_response)
+        """
+        intent_entries = self.get_intent_context(intent, intent_max)
+        faiss_results = self.search(query, faiss_top_k) if self.is_loaded else []
+
+        best_faiss_score = 0.0
+        best_faiss_response = ""
+
+        if classifier_confidence >= confidence_threshold:
+            entries = intent_entries
+        else:
+            seen = {(e["instruction"], e["response"]) for e in intent_entries}
+            for r in faiss_results:
+                key = (r["instruction"], r["response"])
+                if key not in seen:
+                    intent_entries.append({"instruction": r["instruction"], "response": r["response"]})
+                    seen.add(key)
+            entries = intent_entries
+
+        for r in faiss_results:
+            if r["score"] > best_faiss_score:
+                best_faiss_score = r["score"]
+                best_faiss_response = r["response"]
+
+        if best_faiss_score >= high_score_threshold and best_faiss_response:
+            fallback = best_faiss_response
+        else:
+            fallback = self.get_first_response(intent)
+
+        lines = []
+        for i, e in enumerate(entries[: intent_max + faiss_top_k], 1):
+            lines.append(f"{i}. [intent: {intent}] Q: {e['instruction']} -> A: {e['response']}")
+        context = "\n".join(lines)
+
+        return context, fallback
 
 
 # Singleton instance
