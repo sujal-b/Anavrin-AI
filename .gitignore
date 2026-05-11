@@ -61,8 +61,9 @@ desktop.ini
 
 # --- Internal Documentation (Optional) ---
 # Uncomment if you want to keep these strictly local
-# IMPLEMENTATION_PLAN.md
-# CHATBOT_IMPLEMENTATION.md
+IMPLEMENTATION_PLAN.md
+CHATBOT_IMPLEMENTATION.md
+
 
 # --- Logs ---
 *.log
