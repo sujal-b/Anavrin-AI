@@ -1,4 +1,4 @@
-# Python
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
@@ -7,46 +7,64 @@ __pycache__/
 dist/
 build/
 *.egg
-
-# Virtual environments
 venv/
 .venv/
 ENV/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Environment variables
+# --- Node.js (Frontend) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+frontend/dist/
+.next/
+
+# --- Environment & Secrets ---
 .env
 .env.local
+.env.*
+!.env.example
 
-# ML model artifacts (regenerate via Kaggle notebook)
-models/*.joblib
-models/*.pkl
-data/*.pkl
-data/*.csv
+# --- ML Model Artifacts & Data ---
+# --- ML Model Artifacts & Data ---
+# We ignore everything in these folders except the .gitkeep file
+# This ensures the folder structure is preserved in Git without the large binaries.
+models/*
+!models/.gitkeep
 
-# Generated evaluation graphs (regenerate via Kaggle notebook)
-evaluation/*.png
-evaluation/metrics.json
+data/*
+!data/.gitkeep
 
-# IDE
+# --- Evaluation Outputs ---
+evaluation/*
+!evaluation/.gitkeep
+
+
+# --- IDEs & OS ---
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Tool configs
+# --- Tool Specific ---
 .grill/
 .opencode/
-design-system/
+# design-system/  <-- Commented out: usually design docs should be versioned
 
-# Internal docs
-IMPLEMENTATION_PLAN.md
-CHATBOT_IMPLEMENTATION.md
+# --- Internal Documentation (Optional) ---
+# Uncomment if you want to keep these strictly local
+# IMPLEMENTATION_PLAN.md
+# CHATBOT_IMPLEMENTATION.md
 
-# Logs
+# --- Logs ---
 *.log
+logs/
+
