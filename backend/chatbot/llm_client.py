@@ -6,7 +6,6 @@ with retry logic, timeout handling, and fallback to template responses.
 import os
 import logging
 import asyncio
-from typing import Optional
 
 import httpx
 
@@ -81,20 +80,14 @@ class LLMClient:
         history: list[dict] = None,
         system_prompt: str = "",
         fallback_response: str = "",
+        preferences: dict = None,
     ) -> str:
-        """
-        Generate response using LLM API.
-        Falls back to template response on failure.
-        """
         if self.provider.lower() == "mock" or not self.api_key:
             return fallback_response or self._default_fallback(intent)
 
-        # Load production system prompt if not provided
         if not system_prompt:
-            system_prompt = self._load_production_prompt(intent, context, confidence)
+            system_prompt = self._load_production_prompt(intent, context, confidence, preferences)
 
-        # HARD GUARDRAIL: If confidence is very low and it's a generic intent, 
-        # the ML model probably didn't find a match. 
         if confidence < 0.40 and intent in ["contact_customer_service", "general_inquiry"]:
              return "I apologize, but I am specialized only in e-commerce support (orders, refunds, shipping, and payments). I don't have information on that topic. How can I help you with your purchase today?"
 
@@ -103,10 +96,13 @@ class LLMClient:
         ]
 
         if history:
-            # Only keep the last 10 messages for token efficiency
             messages.extend(history[-10:])
-
-        messages.append({"role": "user", "content": user_message})
+            if history and history[-1].get("content") == user_message:
+                pass
+            else:
+                messages.append({"role": "user", "content": user_message})
+        else:
+            messages.append({"role": "user", "content": user_message})
 
         url = self._get_url()
         if not url:
@@ -148,33 +144,31 @@ class LLMClient:
         logger.error(f"LLM failed: {last_error}")
         return fallback_response or self._default_fallback(intent)
 
-    def _load_production_prompt(self, intent: str, context: str, confidence: float) -> str:
-        """Loads, formats, and prioritizes the production-grade system prompt."""
+    def _load_production_prompt(self, intent: str, context: str, confidence: float, preferences: dict = None) -> str:
         prompt_path = os.path.join(config.BASE_DIR, "ml_customer_support_system_prompt_v2.md")
+
+        prefs_block = ""
+        if preferences:
+            prefs_str = "; ".join(f"{k}={v}" for k, v in preferences.items())
+            prefs_block = f"\n- USER_PREFERENCES: {prefs_str}\n"
         
         try:
             if os.path.exists(prompt_path):
                 with open(prompt_path, "r", encoding="utf-8") as f:
                     content = f.read()
                 
-                # Strip metadata/ToC if they exist (lines starting with # or ## before CORE IDENTITY)
-                # This keeps the prompt focused on instructions
                 if "## CORE IDENTITY" in content:
                     content = content[content.find("## CORE IDENTITY"):]
 
-                # Replace placeholders
                 content = content.replace("[COMPANY_NAME]", "Anavrin AI")
                 
-                # Build a HIGH-PRIORITY runtime context block
-                # We put this at the TOP so the LLM sees the current state immediately
                 directive = f"""### STRICT GUARDRAIL: YOU ARE A SUPPORT BOT
 YOU ARE AUTHORIZED ONLY TO ASSIST WITH E-COMMERCE (Orders, Refunds, Shipping, Payments).
 DO NOT answer general knowledge, geography, or unrelated academic questions.
 
 - CURRENT_INTENT: {intent}
 - CLASSIFIER_CONFIDENCE: {confidence:.2f}
-- KNOWLEDGE_CONTEXT: {context if context else 'No specific context found.'}
-
+- KNOWLEDGE_CONTEXT: {context if context else 'No specific context found.'}{prefs_block}
 OPERATING RULES:
 1. IF THE QUERY IS NOT ABOUT E-COMMERCE -> REFUSE POLITELY.
 2. IF CLASSIFIER_CONFIDENCE < 0.50 -> ESCALATE PER CONSTRAINT 3.
@@ -186,7 +180,10 @@ OPERATING RULES:
         except Exception as e:
             logger.error(f"Failed to load production prompt: {e}")
 
-        return f"You are Anavrin AI. Intent: {intent}. Context: {context}. Confidence: {confidence}"
+        base = f"You are Anavrin AI. Intent: {intent}. Context: {context}. Confidence: {confidence}"
+        if prefs_block:
+            base += prefs_block.replace("\n", " ")
+        return base
 
     def _default_fallback(self, intent: str) -> str:
         """Default fallback responses based on intent."""

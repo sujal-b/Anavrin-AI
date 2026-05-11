@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FAF5FF">
     <title>Anavrin AI | ML Customer Support</title>
     <meta name="description" content="Advanced ML-powered customer support assistant with real-time intent classification.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,11 +14,21 @@
 <body>
     <div class="app">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" aria-label="System information">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon">
-                        <img src="/static/assets/product.png" alt="Anavrin AI Logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: var(--radius-md);">
+                    <div class="logo-icon" role="img" aria-label="Anavrin AI">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14 14-6.268 14-14S23.732 2 16 2z" fill="url(#a)"/>
+                            <path d="M12 22v-8l4-3 4 3v8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <path d="M10 18l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <defs>
+                                <linearGradient id="a" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#7C3AED"/>
+                                    <stop offset="1" stop-color="#A78BFA"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
                     </div>
                     <div class="logo-text">
                         <h1>Anavrin AI</h1>
@@ -72,58 +83,67 @@
                 </div>
             </div>
 
-            <div class="sidebar-footer">
-                <a href="/api/metrics" target="_blank" class="footer-link">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 3v18h18"/>
-                        <path d="M18 9l-5 5-2-2-4 4"/>
-                        <circle cx="18" cy="9" r="2"/>
-                    </svg>
-                    Metrics Dashboard
-                </a>
+            <div class="sidebar-footer" id="session-stats">
+                <div class="session-stat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span class="stat-label">Started</span>
+                    <span class="stat-value" id="session-start">-</span>
+                </div>
+                <div class="session-stat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span class="stat-label">Messages</span>
+                    <span class="stat-value" id="session-msgs">0</span>
+                </div>
             </div>
         </aside>
 
         <!-- Main Chat -->
-        <main class="main">
+        <main class="main" role="main">
             <header class="header">
-                <button class="menu-toggle" id="menu-toggle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                <button class="menu-toggle" id="menu-toggle" aria-label="Toggle sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
                 </button>
                 <div class="header-info">
                     <h2>Customer Support</h2>
                     <p>E-commerce Assistant</p>
                 </div>
-                <div class="header-status">
-                    <span class="online-dot"></span>
-                    Online
+                <div class="header-actions">
+                    <button class="reset-btn" id="reset-btn" aria-label="Start new chat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </button>
+                    <div class="header-status">
+                        <span class="online-dot" aria-hidden="true"></span>
+                        Online
+                    </div>
                 </div>
             </header>
 
-            <div class="messages" id="messages">
-                <div class="welcome-message">
-                    <div class="welcome-icon">
-                        <img src="/static/assets/bot.png" alt="Welcome Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                    </div>
-                    <h3>How can I help you today?</h3>
-                    <p>I can assist with orders, refunds, shipping, payments, and more.</p>
-                    <div class="quick-actions">
-                        <button class="quick-btn" onclick="sendQuickMessage('I want to cancel my order')">Cancel Order</button>
-                        <button class="quick-btn" onclick="sendQuickMessage('Where is my refund?')">Check Refund</button>
-                        <button class="quick-btn" onclick="sendQuickMessage('Track my order')">Track Order</button>
-                        <button class="quick-btn" onclick="sendQuickMessage('Payment methods')">Payment Info</button>
+            <div class="chat-container">
+                <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Chat messages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">
+                            <img src="/static/assets/bot.png" alt="" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                        </div>
+                        <h3>How can I help you today?</h3>
+                        <p>I can assist with orders, refunds, shipping, payments, and more.</p>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="sendQuickMessage('I want to cancel my order')" aria-label="Send: cancel order">Cancel Order</button>
+                            <button class="quick-btn" onclick="sendQuickMessage('Where is my refund?')" aria-label="Send: check refund">Check Refund</button>
+                            <button class="quick-btn" onclick="sendQuickMessage('Track my order')" aria-label="Send: track order">Track Order</button>
+                            <button class="quick-btn" onclick="sendQuickMessage('Payment methods')" aria-label="Send: payment info">Payment Info</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="input-area">
-                <form class="input-form" id="input-form">
-                    <input type="text" id="message-input" placeholder="Ask me anything..." autocomplete="off" required>
-                    <button type="submit" id="send-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                    </button>
-                </form>
-                <p class="input-hint">Press Enter to send</p>
+                <div class="input-area">
+                    <form class="input-form" id="input-form">
+                        <textarea id="message-input" rows="1" placeholder="Ask me anything..." autocomplete="off" required aria-label="Type your message"></textarea>
+                        <button type="submit" id="send-btn" aria-label="Send message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                        </button>
+                    </form>
+                    <p class="input-hint">Enter to send · Shift+Enter for new line</p>
+                </div>
             </div>
         </main>
     </div>

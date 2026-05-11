@@ -1,9 +1,9 @@
+import asyncio
 import os
 import time
 import uuid
 import logging
 from datetime import datetime
-from typing import Dict, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -14,13 +14,14 @@ from backend.config.settings import config
 from backend.chatbot.intent_classifier import intent_classifier
 from backend.chatbot.rag_engine import rag_engine
 from backend.chatbot.llm_client import llm_client
-from backend.api.schemas import ChatRequest, ChatResponse, HealthResponse
+from backend.api.schemas import ChatRequest, ChatResponse, HealthResponse, SessionState
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("anavrin")
 
-MAX_SESSIONS = 100
-sessions: Dict[str, List[dict]] = {}
+MAX_HISTORY = 20
+session_state: SessionState = SessionState()
+session_lock: asyncio.Lock = asyncio.Lock()
 _startup_time_ms: float = 0.0
 
 
@@ -44,6 +45,11 @@ async def lifespan(app: FastAPI):
     global _startup_time_ms
     _startup_time_ms = round(elapsed * 1000, 1)
     logger.info(f"Backend ready in {elapsed:.2f}s")
+
+    global session_state
+    session_state.session_id = str(uuid.uuid4())
+    session_state.start_time = datetime.now()
+    logger.info(f"Global session ID: {session_state.session_id}")
     yield
 
 
@@ -79,14 +85,15 @@ async def chat(req: ChatRequest):
     if not intent_classifier.is_loaded:
         raise HTTPException(status_code=503, detail="System initializing")
 
-    session_id = req.session_id or str(uuid.uuid4())
-    if session_id not in sessions:
-        if len(sessions) >= MAX_SESSIONS:
-            oldest = next(iter(sessions))
-            del sessions[oldest]
-        sessions[session_id] = []
+    async with session_lock:
+        if req.preferences:
+            session_state.preferences.update(req.preferences)
 
-    sessions[session_id].append({"role": "user", "content": req.message})
+        session_state.messages.append({"role": "user", "content": req.message})
+        if len(session_state.messages) > MAX_HISTORY:
+            session_state.messages = session_state.messages[-MAX_HISTORY:]
+
+        history = list(session_state.messages[:-1])
 
     intent, confidence, all_probs = intent_classifier.predict(req.message)
     category = rag_engine.intent_category.get(intent, "unknown")
@@ -96,7 +103,6 @@ async def chat(req: ChatRequest):
         classifier_confidence=confidence,
     )
 
-    history = sessions[session_id][-10:]
     response_text = await llm_client.generate(
         user_message=req.message,
         intent=intent,
@@ -104,9 +110,11 @@ async def chat(req: ChatRequest):
         context=context,
         history=history,
         fallback_response=fallback,
+        preferences=session_state.preferences,
     )
 
-    sessions[session_id].append({"role": "assistant", "content": response_text})
+    async with session_lock:
+        session_state.messages.append({"role": "assistant", "content": response_text})
 
     return ChatResponse(
         user_message=req.message,
@@ -114,17 +122,38 @@ async def chat(req: ChatRequest):
         category=category,
         confidence=round(confidence, 4),
         response=response_text,
-        session_id=session_id,
+        session_id=session_state.session_id,
         model_used=intent_classifier.model_name,
         timestamp=datetime.now().isoformat(),
+        preferences=dict(session_state.preferences),
     )
 
 
-@app.delete("/api/session/{session_id}")
-async def clear_session(session_id: str):
-    if session_id in sessions:
-        del sessions[session_id]
-    return {"status": "cleared"}
+@app.get("/api/session")
+async def get_session():
+    async with session_lock:
+        return {
+            "session_id": session_state.session_id,
+            "start_time": session_state.start_time.isoformat(),
+            "messages": list(session_state.messages),
+            "preferences": dict(session_state.preferences),
+        }
+
+
+@app.post("/api/session/reset")
+async def reset_session():
+    global session_state
+    async with session_lock:
+        session_state = SessionState(
+            session_id=str(uuid.uuid4()),
+            start_time=datetime.now(),
+        )
+    logger.info(f"Session reset. New session ID: {session_state.session_id}")
+    return {
+        "status": "reset",
+        "session_id": session_state.session_id,
+        "start_time": session_state.start_time.isoformat(),
+    }
 
 
 @app.get("/api/metrics")
