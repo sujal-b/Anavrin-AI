@@ -100,6 +100,7 @@ async def chat(req: ChatRequest):
     response_text = await llm_client.generate(
         user_message=req.message,
         intent=intent,
+        confidence=confidence,
         context=context,
         history=history,
         fallback_response=fallback,

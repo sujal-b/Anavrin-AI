@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class Config:
@@ -10,7 +14,15 @@ class Config:
 
     # LLM Configuration
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "mock")
-    LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+    
+    # Try to get the specific key based on provider, fallback to generic LLM_API_KEY
+    if LLM_PROVIDER.upper() == "OPENROUTER":
+        LLM_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+    elif LLM_PROVIDER.upper() == "NVIDIA":
+        LLM_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+    else:
+        LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+
     LLM_MODEL = os.getenv("LLM_MODEL", "meta/llama-3.1-8b-instruct")
 
     # Model loading priority (best → worst)
